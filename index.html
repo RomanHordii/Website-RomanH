@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Опитування</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #ffe6e6; /* Ніжно-рожевий колір */
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        .option {
+            margin-top: 5px;
+        }
+        .results {
+            margin-top: 15px;
+            font-weight: bold;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Веб-застосунок для опитувань від Гордія Романа</h1>
+
+    <!-- Блок для створення нового опитування -->
+    <div class="section" id="create-survey-section">
+        <h2>Створити нове опитування</h2>
+        <input type="text" id="survey-question" placeholder="Введіть запитання" style="width: 100%;">
+        <div id="options-container"></div>
+        <button onclick="addOption()">Додати варіант відповіді</button>
+        <button onclick="createSurvey()">Створити опитування</button>
+    </div>
+
+    <!-- Блок для перегляду та участі в опитуваннях -->
+    <div class="section" id="take-survey-section">
+        <h2>Пройти опитування</h2>
+        <select id="survey-list" onchange="loadSurvey()">
+            <option value="">Оберіть опитування</option>
+        </select>
+        <div id="survey-questions"></div>
+        <button onclick="submitSurvey()">Відправити відповіді</button>
+        <button onclick="deleteSurvey()">Видалити обране опитування</button> <!-- Кнопка для видалення -->
+    </div>
+
+    <!-- Блок для перегляду результатів -->
+    <div class="section" id="results-section">
+        <h2>Результати опитувань</h2>
+        <div id="survey-results"></div>
+    </div>
+
+    <script>
+        let surveys = JSON.parse(localStorage.getItem('surveys')) || [];
+
+        function addOption() {
+            const optionsContainer = document.getElementById("options-container");
+
+            // Створення блоку для нового варіанту відповіді
+            const optionDiv = document.createElement("div");
+            optionDiv.className = "option";
+            
+            // Поле для введення варіанту відповіді
+            const optionInput = document.createElement("input");
+            optionInput.type = "text";
+            optionInput.placeholder = "Варіант відповіді";
+            
+            // Чекбокс для позначення правильної відповіді
+            const correctCheckbox = document.createElement("input");
+            correctCheckbox.type = "checkbox";
+            correctCheckbox.className = "correct-answer";
+            const correctLabel = document.createElement("label");
+            correctLabel.textContent = " Правильна відповідь";
+            
+            // Додавання полів у контейнер варіантів
+            optionDiv.appendChild(optionInput);
+            optionDiv.appendChild(correctCheckbox);
+            optionDiv.appendChild(correctLabel);
+            optionsContainer.appendChild(optionDiv);
+        }
+
+        function createSurvey() {
+            const question = document.getElementById("survey-question").value.trim();
+            const options = Array.from(document.getElementsByClassName("option"))
+                .map(optionDiv => {
+                    return {
+                        text: optionDiv.querySelector("input[type='text']").value.trim(),
+                        isCorrect: optionDiv.querySelector(".correct-answer").checked
+                    };
+                })
+                .filter(option => option.text !== "");
+
+            if (question && options.length > 1) {
+                const survey = { question, options };
+                surveys.push(survey);
+                localStorage.setItem('surveys', JSON.stringify(surveys));
+                updateSurveyList();
+                alert("Опитування створено!");
+                document.getElementById("survey-question").value = "";
+                document.getElementById("options-container").innerHTML = "";
+            } else {
+                alert("Введіть запитання та принаймні два варіанти відповіді.");
+            }
+        }
+
+        function updateSurveyList() {
+            const surveyList = document.getElementById("survey-list");
+            surveyList.innerHTML = '<option value="">Оберіть опитування</option>';
+            surveys.forEach((survey, index) => {
+                const option = document.createElement("option");
+                option.value = index;
+                option.textContent = survey.question;
+                surveyList.appendChild(option);
+            });
+        }
+
+        function loadSurvey() {
+            const surveyIndex = document.getElementById("survey-list").value;
+            const surveyQuestions = document.getElementById("survey-questions");
+            surveyQuestions.innerHTML = "";
+
+            if (surveyIndex !== "") {
+                const survey = surveys[surveyIndex];
+                const questionElement = document.createElement("h3");
+                questionElement.textContent = survey.question;
+                surveyQuestions.appendChild(questionElement);
+
+                survey.options.forEach((option, i) => {
+                    const label = document.createElement("label");
+                    label.style.display = "block";
+                    const radio = document.createElement("input");
+                    radio.type = "radio";
+                    radio.name = "survey-option";
+                    radio.value = i;
+                    label.appendChild(radio);
+                    label.appendChild(document.createTextNode(option.text));
+                    surveyQuestions.appendChild(label);
+                });
+            }
+        }
+
+        function submitSurvey() {
+            const surveyIndex = document.getElementById("survey-list").value;
+            const selectedOption = document.querySelector('input[name="survey-option"]:checked');
+
+            if (surveyIndex !== "" && selectedOption) {
+                const survey = surveys[surveyIndex];
+                const selectedAnswerIndex = parseInt(selectedOption.value);
+                const isCorrect = survey.options[selectedAnswerIndex].isCorrect;
+
+                if (isCorrect) {
+                    alert("Вітаємо, ви відповіли правильно!");
+                } else {
+                    alert("На жаль, це неправильна відповідь.");
+                }
+                displayResults();
+            } else {
+                alert("Оберіть відповідь перед відправленням.");
+            }
+        }
+
+        function deleteSurvey() {
+            const surveyIndex = document.getElementById("survey-list").value;
+
+            if (surveyIndex !== "") {
+                const confirmed = confirm("Ви впевнені, що хочете видалити це опитування?");
+                if (confirmed) {
+                    surveys.splice(surveyIndex, 1); // Видаляємо опитування за індексом
+                    localStorage.setItem('surveys', JSON.stringify(surveys));
+                    updateSurveyList();
+                    document.getElementById("survey-questions").innerHTML = ""; // Очищаємо відображення запитань
+                    alert("Опитування видалено!");
+                    displayResults();
+                }
+            } else {
+                alert("Оберіть опитування для видалення.");
+            }
+        }
+
+        function displayResults() {
+            const resultsContainer = document.getElementById("survey-results");
+            resultsContainer.innerHTML = "";
+
+            surveys.forEach((survey, surveyIndex) => {
+                const resultDiv = document.createElement("div");
+                resultDiv.className = "results";
+                const questionTitle = document.createElement("h3");
+                questionTitle.textContent = survey.question;
+                resultDiv.appendChild(questionTitle);
+
+                survey.options.forEach((option, i) => {
+                    const optionResult = document.createElement("p");
+                    const isCorrectText = option.isCorrect ? " (Правильна відповідь)" : "";
+                    optionResult.textContent = `${option.text}${isCorrectText}`;
+                    resultDiv.appendChild(optionResult);
+                });
+
+                resultsContainer.appendChild(resultDiv);
+            });
+        }
+
+        // Оновлюємо список опитувань під час завантаження сторінки
+        updateSurveyList();
+        displayResults();
+    </script>
+
+</body>
+</html>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background-color: #ffe6e6; /* Ніжно-рожевий колір */
+    }
+    .section {
+        margin-bottom: 20px;
+    }
+    .option {
+        margin-top: 5px;
+    }
+    .results {
+        margin-top: 15px;
+        font-weight: bold;
+        color: #555;
+    }
+</style>
